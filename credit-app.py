@@ -17,26 +17,32 @@ st.set_page_config(
 @st.cache_resource
 def load_models():
     # Load tree-based models
-    with open('ensemble_models.pkl', 'rb') as f:
+    with open('ensemble_classical_models.pkl', 'rb') as f:
         ensemble_models = pickle.load(f)
 
     # Load neural network
-    nn_model = load_model('nn_model.h5') 
+    nn_model = load_model('nn_model.h5', compile=False) 
 
     # Load preprocessor
     with open('preprocessor.pkl', 'rb') as f:
         preprocessor = pickle.load(f)
+
+    # Get correct feature names
+    feature_names = preprocessor.get_feature_names_out()
 
     # Load best threshold    
     with open('best_threshold.pkl', 'rb') as f:
         threshold = pickle.load(f)
 
     # Create SHAP explainer for LGBM (cached for performance)
-    explainer = shap.TreeExplainer(ensemble_models['LGBM Classifier'])
+    explainer = shap.TreeExplainer(
+        ensemble_models['LGBM Classifier'],
+        feature_names=feature_names)
     
     return ensemble_models, nn_model, preprocessor, threshold, explainer
 
 # Title
+
 st.title("Loan Default Prediction System")
 st.markdown("Enter applicant information to predict default risk")
 st.divider()
@@ -232,7 +238,7 @@ with col2:
         
         try:
             # Load models
-            ensemble_models, nn_model, preprocessor, threshold = load_models()
+            ensemble_models, nn_model, preprocessor, threshold, _ = load_models()
 
             # Feature Engineering
             input_data = input_data.copy()
@@ -372,12 +378,12 @@ if st.session_state.get('prediction_made', False):
             shap_values = explainer(input_preprocessed)
 
         # Create waterfall plot
-        fig, ax = plt.subplots(figsize=(10, 6))
+        fig, ax = plt.subplots(figsize=(6, 6))
         shap.plots.waterfall(shap_values[0], max_display=10, show=False)
         plt.tight_layout()
 
         # Display in streamlit
-        st.pyplot(fig, use_container_width=True)
+        st.pyplot(fig, use_container_width=False)
         plt.close()
 
         # Interpretation
