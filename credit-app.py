@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import pickle
+from tensorflow.keras.models import load_model
+import shap
+import matplotlib.pyplot as plt
 
 # Page config
 st.set_page_config(
@@ -13,13 +16,25 @@ st.set_page_config(
 # Load models (cached for performance)
 @st.cache_resource
 def load_models():
-    with open('ensemble_model.pkl', 'rb') as f:
+    # Load tree-based models
+    with open('ensemble_models.pkl', 'rb') as f:
         ensemble_models = pickle.load(f)
+
+    # Load neural network
+    nn_model = load_model('nn_model.h5') 
+
+    # Load preprocessor
     with open('preprocessor.pkl', 'rb') as f:
         preprocessor = pickle.load(f)
+
+    # Load best threshold    
     with open('best_threshold.pkl', 'rb') as f:
         threshold = pickle.load(f)
-    return ensemble_models, preprocessor, threshold
+
+    # Create SHAP explainer for LGBM (cached for performance)
+    explainer = shap.TreeExplainer(ensemble_models['LGBM Classifier'])
+    
+    return ensemble_models, nn_model, preprocessor, threshold, explainer
 
 # Title
 st.title("Loan Default Prediction System")
@@ -217,7 +232,7 @@ with col2:
         
         try:
             # Load models
-            ensemble_models, preprocessor, threshold = load_models()
+            ensemble_models, nn_model, preprocessor, threshold = load_models()
 
             # Feature Engineering
             input_data = input_data.copy()
@@ -256,20 +271,26 @@ with col2:
             )
             
             # Drop irrelevant features after engineering
-            input_data = input_data.drop(columns='earliest_cr_line')            
+            input_data = input_data.drop(columns=['earliest_cr_line', 'fico_range_low', 'fico_range_high'])            
             
             # Preprocess
             input_preprocessed = preprocessor.transform(input_data)
             
-            # Predict with all 4 models and average
-            lr_proba = ensemble_models['Logistic Regression'].predict_proba(input_preprocessed)[0, 1]
-            xgb_proba = ensemble_models['XGB Classifier'].predict_proba(input_preprocessed)[0, 1]
+            # Predict with all 3 models and average
             lgbm_proba = ensemble_models['LGBM Classifier'].predict_proba(input_preprocessed)[0, 1]
             cat_proba = ensemble_models['Cat Boost Classifier'].predict_proba(input_preprocessed)[0, 1]
+            nn_proba  = nn_model.predict(input_preprocessed, verbose=0).item()
             
             # Average all predictions
-            default_proba = (lr_proba + xgb_proba + lgbm_proba + cat_proba) / 4
+            default_proba = np.mean([lgbm_proba, cat_proba, nn_proba])
             prediction = 1 if default_proba >= threshold else 0
+
+            # Store in session state for SHAP plot
+            st.session_state['prediction_made'] = True
+            st.session_state['input_preprocessed'] = input_preprocessed
+            st.session_state['default_proba'] = default_proba
+            st.session_state['prediction'] = prediction
+            st.session_state['threshold'] = threshold
             
             # Display results
             st.subheader("Results")
@@ -317,16 +338,71 @@ with col2:
     # Information box
     st.divider()
     st.info("""How to use:
-1. Fill in all applicant information
-2. Click 'Predict Default Risk'
-3. Review the prediction results
+            1. Fill in all applicant information
+            2. Click 'Predict Default Risk'
+            3. Review the prediction results
 
-Model: Stacking Ensemble
-- Logistic Regression
-- XGBoost
-- LightGBM
-- CatBoost
-""")
+            Model: Stacking Ensemble
+            - XGBoost
+            - LightGBM
+            - Multilayer Perceptron (MLP)
+            """
+    )
+
+# SHAP Explanation Section 
+if st.session_state.get('prediction_made', False):
+    st.divider()
+    st.header("🔍 Why Was This Prediction Made?")
+    st.markdown("""
+    The chart below shows which features had the biggest impact on this prediction:
+    - **Red bars** push the prediction towards **default** (increase risk)
+    - **Blue bars** push the prediction towards **repayment** (decrease risk)
+    - The length of each bar shows how much that feature influenced the decision
+    """)
+
+    try:
+        # Load explainer
+        _, _, _, _, explainer = load_models()
+
+        # Get preprocessed input from session state
+        input_preprocessed = st.session_state['input_preprocessed']
+
+        # Compute SHAP values
+        with st.spinner("Computing feature importance..."):
+            shap_values = explainer(input_preprocessed)
+
+        # Create waterfall plot
+        fig, ax = plt.subplots(figsize=(10, 6))
+        shap.plots.waterfall(shap_values[0], max_display=10, show=False)
+        plt.tight_layout()
+
+        # Display in streamlit
+        st.pyplot(fig, use_container_width=True)
+        plt.close()
+
+        # Interpretation
+        with st.expander("ℹ️ How to interpret this chart"):
+            st.markdown("""
+            **Understanding the SHAP Waterfall Plot:**
+
+            - **E[f(x)]**: The average prediction across all applicants (baseline)
+            - **f(x)**: This applicant's prediction
+            - **Features**: Listed from most to least impactful
+            - **Values in brackets**: The actual feature value for this applicant
+            - **Arrow direction**: 
+                - Right (red) = increases default probability
+                - Left (blue) = decreases default probability
+            
+            **Example:** If you see "fico_score = 702" with a blue bar pointing left, 
+            this means the applicant's FICO score of 702 reduces their default risk 
+            compared to the average applicant.            
+            """)
+        
+    except Exception as e:
+        st.error(f"Error generating SHAP plot: {str(e)}")
+        import traceback
+        st.code(traceback.format_exc())
+
 
 # Footer
 st.divider()
