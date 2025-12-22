@@ -33,16 +33,14 @@ def load_models():
     # Load best threshold    
     with open('best_threshold.pkl', 'rb') as f:
         threshold = pickle.load(f)
-
-    # Create SHAP explainer for LGBM (cached for performance)
-    explainer = shap.TreeExplainer(
-        ensemble_models['LGBM Classifier'],
-        feature_names=feature_names)
     
-    return ensemble_models, nn_model, preprocessor, threshold, explainer
+    return ensemble_models, nn_model, preprocessor, threshold, feature_names
+
+@st.cache_resource
+def get_shap_explainer(_model, feature_names):
+    return shap.TreeExplainer(_model, feature_names=feature_names)
 
 # Title
-
 st.title("Loan Default Prediction System")
 st.markdown("Enter applicant information to predict default risk")
 st.divider()
@@ -111,12 +109,12 @@ with col1:
             "Public Records", 
             min_value=0, 
             value=0,
-            help="Assumed number of public records in the applicant’s credit history")
+            help="Assumed number of public records in the applicant's credit history")
         pub_rec_bankruptcies = st.number_input(
             "Bankruptcies", 
             min_value=0, 
             value=0,
-            help="Assumed number of bankruptcies in the applicant’s credit history,")
+            help="Assumed number of bankruptcies in the applicant's credit history,")
     
     st.divider()
     
@@ -197,7 +195,7 @@ with col1:
         earliest_cr_line = st.text_input(
             "Earliest Credit Line (YYYY-MM)", 
             value="2010-01",
-            help="Assumed start date of the applicant’s earliest credit line")
+            help="Assumed start date of the applicant's earliest credit line")
         
     with c9:
         collections_12_mths_ex_med = st.number_input(
@@ -238,7 +236,7 @@ with col2:
         
         try:
             # Load models
-            ensemble_models, nn_model, preprocessor, threshold, _ = load_models()
+            ensemble_models, nn_model, preprocessor, threshold, feature_names = load_models()
 
             # Feature Engineering
             input_data = input_data.copy()
@@ -297,6 +295,7 @@ with col2:
             st.session_state['default_proba'] = default_proba
             st.session_state['prediction'] = prediction
             st.session_state['threshold'] = threshold
+            st.session_state['feature_names'] = feature_names
             
             # Display results
             st.subheader("Results")
@@ -367,8 +366,9 @@ if st.session_state.get('prediction_made', False):
     """)
 
     try:
-        # Load explainer
-        _, _, _, _, explainer = load_models()
+        # Load models and get explainer
+        ensemble_models, _, _, _, feature_names = load_models()
+        explainer = get_shap_explainer(ensemble_models['LGBM Classifier'], tuple(feature_names))
 
         # Get preprocessed input from session state
         input_preprocessed = st.session_state['input_preprocessed']
