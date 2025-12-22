@@ -126,10 +126,69 @@ streamlit run credit-app.py
 
 ### **Ensemble Model** 
 - Voting/Stacking ensemble of top 2 classical models and the neural network
-- **Final Performance:** ROC-AUC = 0.XXX, Accuracy = XX% ### 
+- **Final Performance:** ROC-AUC = 0.6935, Accuracy = 63% 
 
  ### **Model Interpretation (SHAP)** 
  - TreeExplainer for LightGBM model 
  - Global feature importance analysis 
  - Local explanations for individual predictions 
  - Waterfall plots for real-time decision support
+
+---
+## 🧠 Key Insights & Learnings
+
+### **1. Performance Ceiling Is Real**
+
+Across classical ML, neural networks, and ensembles, model performance consistently plateaued around **ROC-AUC ≈ 0.69–0.71**, even after confirming no data leakage. Increasing model complexity yielded minimal gains, highlighting that **feature signal—not model choice—was the main limiting factor**.
+
+---
+
+### **2. Credit Lending Is Inherently Difficult**
+
+With a realistic **20/80 default imbalance**, even well-tuned models struggled to strongly separate defaulters from non-defaulters. Many borrowers who default appear statistically similar to those who repay, reflecting real-world uncertainty rather than modeling failure.
+
+---
+
+### **3. A Small Set of Features Dominates Predictions**
+
+SHAP analysis showed consistent reliance on:
+
+- Debt-to-income ratio
+- Income
+- Account utilization
+- Loan term
+- FICO score (or strong proxies)
+- 
+Even when FICO was removed, predictions changed only marginally, indicating **high feature redundancy and correlation**.
+
+---
+
+### **4. Complex Models Learn Similar Boundaries**
+
+Neural networks, tree-based models, and ensembles relied on **nearly identical feature patterns**, explaining why ensembling and deep learning offered limited uplift over simpler models.
+
+---
+
+### **5. Thresholds Matter More Than Accuracy**
+
+Optimal classification thresholds varied significantly by model. A fixed 0.5 cutoff is not operationally meaningful in credit lending—**risk decisions must align with portfolio risk tolerance**, not raw accuracy.
+
+---
+
+### **6. Production Credit Models Require Monitoring**
+
+Static models are insufficient in real lending environments. Effective systems require:
+- Feature and prediction drift monitoring
+- Periodic retraining
+- Portfolio-level risk tracking
+---
+
+### **7. Explainability Is Essential**
+
+SHAP explanations were critical for validating model behavior and supporting underwriting decisions. In regulated financial settings, **interpretability matters more than marginal AUC improvements**.
+
+---
+
+### **Final Takeaway**
+
+> Credit risk modeling is constrained by real-world uncertainty, not algorithms. Meaningful improvements come from better data, monitoring, and decision frameworks—not just more complex models.
