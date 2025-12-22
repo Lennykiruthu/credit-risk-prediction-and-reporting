@@ -114,6 +114,9 @@ streamlit run credit-app.py
 | CatBoost            | 0.6968  | 0.64     | 0.434         | 0.248                 |
 | Random Forest       | 0.6807  | 0.63     | 0.422         | 0.453                 |
 | Neural Network      | 0.7068  | 0.65     | 0.442         | 0.505                 |
+
+- The meta-model of the classical models highlighted that cat boost classifier and lightgbm classifier push our predictions towards default and non-default more accurately:
+	![credit-risk-prediction-and-reporting](classical-meta-model.png)
 ### **Neural Network** 
 - **Architecture**: Fully connected feed-forward neural network with **64 and 32 hidden units**
 - **Activation Functions**: ReLU for hidden layers, Sigmoid for output layer
@@ -122,7 +125,7 @@ streamlit run credit-app.py
 - **Output**: Single neuron producing default probability
 
 ### **Ensemble Model** 
-- Voting/Stacking ensemble of top 3 models 
+- Voting/Stacking ensemble of top 2 classical models and the neural network
 - **Final Performance:** ROC-AUC = 0.XXX, Accuracy = XX% ### 
 
  ### **Model Interpretation (SHAP)** 
