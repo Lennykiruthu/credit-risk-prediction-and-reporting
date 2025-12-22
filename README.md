@@ -13,33 +13,11 @@ This project builds an end-to-end machine learning pipeline that:
 - 🚀 Production-ready Streamlit deployment 
 - 📈 Achieved on average 70% ROC-AUC score on test sets
 
-## 📁 Project Structure 
+## 📁 Front-end Examples
 
-``` 
-loan-default-prediction/ 
-│ 
-├── notebooks/ 
-|	└── model_development.ipynb # Feature engineering, Model development  |       and interpretation with SHAP. 
-│ 
-├── app/ 
-│   └── credit_app.py # Main Streamlit application 
-|
-│── models/ 
-│   ├── ensemble_models.pkl # Trained classical models 
-│   ├── nn_model.h5 # Trained neural network 
-│   ├── preprocessor.pkl # Feature preprocessing pipeline 
-│   └── best_threshold.pkl # Optimal classification threshold 
-│ 
-├── data/ 
-│   └── raw/ # Original datasets  
-|
-├── assets/ 
-│   └── demo_screenshot.png # Screenshots for README 
-|
-├── requirements.txt # Python dependencies 
-├── README.md # This file 
-└── LICENSE # License information 
-```
+![credit-risk-prediction-and-reporting](loan_page_001.png)
+![credit-risk-prediction-and-reporting](loan_page_002.png)
+
  
 --- 
 ## 🚀 Quick Start 
